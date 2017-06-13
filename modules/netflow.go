@@ -120,6 +120,8 @@ func FiltData (srcTbl string, dstTbl string, beginTime int, endTime int, groupBy
         if err != nil {
             log.Fatal(err)
         }
+        
+        defer stmt.Close()
 
         _, err = stmt.Exec()
         if err != nil {
