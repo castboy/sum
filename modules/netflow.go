@@ -4,9 +4,9 @@ import (
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
     "log"
-    "fmt"
+    //"fmt"
     "strconv"
-    "time"
+    //"sync"
 )
 
 var DbHdl *sql.DB
@@ -130,27 +130,3 @@ func FiltData (srcTbl string, dstTbl string, beginTime int, endTime int, groupBy
     }
 }
 
-
-func Sum (srcTbl string, dstTbl string, interval int, groupBys []string, etcdDir string) {
-    tblMaxTime := TblMaxMinTime("max", srcTbl)
-    tblMinTime := TblMaxMinTime("min", srcTbl)
-    etcdTime := EtcdTime(etcdDir + dstTbl)
-    beginTime := BeginTime(etcdTime, tblMinTime, interval * 60)
-    endTime := beginTime + interval * 60
-
-    for {
-        if endTime + interval * 60 < tblMaxTime {
-            FiltData(srcTbl, dstTbl, beginTime, endTime, groupBys)
-
-            EtcdRecord(etcdDir + dstTbl, strconv.Itoa(endTime))
-
-            beginTime = EtcdTime(etcdDir + dstTbl)
-            endTime = beginTime + interval * 60
-
-            tblMaxTime = TblMaxMinTime("max", srcTbl)
-        } else {
-            fmt.Println(srcTbl, " goroutine is sleeping")
-            time.Sleep(time.Duration(interval * 60) * time.Second)
-        }
-    }
-} 
