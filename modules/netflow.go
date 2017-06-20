@@ -73,20 +73,26 @@ func BeginTime (etcdTime, tblMinTime, interval int) int {
     return time
 }
 
-func FiltData (srcTbl string, dstTbl string, beginTime int, endTime int, groupBys []string) {
+func FiltData (srcTbl string, dstTbl string, beginTime int, endTime int, groupBys []string) bool {
     var groupByStr string
+    var sqlStr string
     groupBysLen := len(groupBys)
-    for key, val := range groupBys {
-        if key < groupBysLen - 1 {
-            groupByStr = groupByStr + val + ", "
-        } else {
-            groupByStr = groupByStr + val
-        }
-    }
 
-    sqlStr := "select " + groupByStr + ", sum(flow) from " +  srcTbl +  
-              " where time >= " + strconv.Itoa(beginTime) + " and time <= " + strconv.Itoa(endTime) + 
-              " group by " + groupByStr
+    if groupBysLen > 0 {
+        for key, val := range groupBys {
+            if key < groupBysLen - 1 {
+                groupByStr = groupByStr + val + ", "
+            } else {
+                groupByStr = groupByStr + val
+            }
+        }
+        sqlStr = "select " + groupByStr + ", sum(flow) from " +  srcTbl +  
+                  " where time >= " + strconv.Itoa(beginTime) + " and time <= " + strconv.Itoa(endTime) + 
+                  " group by " + groupByStr
+    } else {
+        sqlStr = "select sum(flow) from " +  srcTbl +  
+                  " where time >= " + strconv.Itoa(beginTime) + " and time <= " + strconv.Itoa(endTime)
+    }
 
     rows, err := DbHdl.Query(sqlStr)
 
@@ -103,12 +109,25 @@ func FiltData (srcTbl string, dstTbl string, beginTime int, endTime int, groupBy
         var groupBy0 string
         var groupBy1 string
 
-        if len(groupBys) == 1 {
+        if groupBysLen == 0 {
+            err = rows.Scan(&sum)
+            if err != nil {
+                return false
+            }
+            sqlStr = "insert into " + dstTbl + " (time, flow) values (" +
+                      strconv.Itoa(endTime) + ", " + strconv.Itoa(sum) + ")" 
+        } else if groupBysLen == 1 {
             err = rows.Scan(&groupBy0, &sum)
+            if err != nil {
+                return false
+            }
             sqlStr = "insert into " + dstTbl + " (time, flow, " + groupBys[0] +  ") values (" +
                       strconv.Itoa(endTime) + ", " + strconv.Itoa(sum) + ", '" + groupBy0 + "')" 
         } else {
             err = rows.Scan(&groupBy0, &groupBy1, &sum)
+            if err != nil {
+                return false
+            }
             sqlStr = "insert into " + dstTbl + " (time, flow, " + groupBys[0] + ", " + groupBys[1] + ") values (" +
                       strconv.Itoa(endTime) + ", " + strconv.Itoa(sum) + ", '" + groupBy0 + "', '" + groupBy1 + "')" 
         }
@@ -128,5 +147,7 @@ func FiltData (srcTbl string, dstTbl string, beginTime int, endTime int, groupBy
             log.Fatal(err)
         }
     }
+
+    return false
 }
 

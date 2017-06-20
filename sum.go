@@ -19,13 +19,13 @@ func Sum (srcTbl string, dstTbl string, interval int, groupBys []string, etcdDir
     endTime := beginTime + interval * 60
     
     if endTime + interval * 60 < tblMaxTime {
-        modules.FiltData(srcTbl, dstTbl, beginTime, endTime, groupBys)
         modules.EtcdRecord(etcdDir + dstTbl, strconv.Itoa(endTime))
+        modules.FiltData(srcTbl, dstTbl, beginTime, endTime, groupBys)
 
-        beginTime = modules.EtcdTime(etcdDir + dstTbl)
-        endTime = beginTime + interval * 60
+        //beginTime = modules.EtcdTime(etcdDir + dstTbl)
+        //endTime = beginTime + interval * 60
 
-        tblMaxTime = modules.TblMaxMinTime("max", srcTbl)
+        //tblMaxTime = modules.TblMaxMinTime("max", srcTbl)
     }
 
     fmt.Println(dstTbl, " executed")
@@ -34,7 +34,7 @@ func Sum (srcTbl string, dstTbl string, interval int, groupBys []string, etcdDir
 
 func main () {
     var tblPostfix string = "_hour" 
-    var timeWindow int = 15
+    var timeWindow int = 60
     
     args := os.Args
     if args != nil && len(args) == 3 {
@@ -51,6 +51,7 @@ func main () {
 
     var tbls map[string] []string
     tbls = make(map[string] []string)
+    tbls["tbl_netflow"] = []string{} 
     tbls["tbl_netflowd"] = []string{"direction"} 
     tbls["tbl_netflowp"] = []string{"protocol"} 
     tbls["tbl_netflowip"] = []string{"assetIp"} 

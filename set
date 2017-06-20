@@ -1,5 +1,6 @@
 #!/bin/bash
 
+etcdctl put apt/sum/tbl_netflow_"$1" $2
 etcdctl put apt/sum/tbl_netflowd_"$1" $2
 etcdctl put apt/sum/tbl_netflowp_"$1" $2
 etcdctl put apt/sum/tbl_netflowip_"$1" $2
