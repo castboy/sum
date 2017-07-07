@@ -62,15 +62,20 @@ func EtcdRecord (key, val string) {
 }
 
 func BeginTime (etcdTime, tblMinTime, interval int) int {
-    var time int
+    /*var time int
 
     if  etcdTime < tblMinTime {
         time = (tblMinTime / interval) * interval 
+        fmt.Println("tbl-time:", time)
     } else {
         time = (etcdTime / interval) * interval
+        fmt.Println("etcd-time:", time)
     }
 
     return time
+    */
+
+    return etcdTime
 }
 
 func FiltData (srcTbl string, dstTbl string, beginTime int, endTime int, groupBys []string) bool {

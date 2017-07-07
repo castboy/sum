@@ -20,12 +20,8 @@ func Sum (srcTbl string, dstTbl string, interval int, groupBys []string, etcdDir
     
     if endTime + interval * 60 < tblMaxTime {
         modules.EtcdRecord(etcdDir + dstTbl, strconv.Itoa(endTime))
+        fmt.Println("endTime:", endTime)
         modules.FiltData(srcTbl, dstTbl, beginTime, endTime, groupBys)
-
-        //beginTime = modules.EtcdTime(etcdDir + dstTbl)
-        //endTime = beginTime + interval * 60
-
-        //tblMaxTime = modules.TblMaxMinTime("max", srcTbl)
     }
 
     fmt.Println(dstTbl, " executed")
@@ -45,6 +41,8 @@ func main () {
         }
         tblPostfix = args[2]
     }
+
+    fmt.Println("timeWindow:", timeWindow)
 
     modules.InitEtcdCli()
     modules.Db("root", "mysqladmin", "10.88.1.102", "aptwebservice")
