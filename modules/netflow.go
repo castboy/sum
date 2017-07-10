@@ -1,158 +1,171 @@
 package modules
 
 import (
-    "database/sql"
-    _ "github.com/go-sql-driver/mysql"
-    "log"
-    //"fmt"
-    "strconv"
-    //"sync"
+	"database/sql"
+	"log"
+
+	"fmt"
+	"strconv"
+
+	_ "github.com/go-sql-driver/mysql"
+	//"sync"
+	"time"
 )
 
 var DbHdl *sql.DB
 
-func Db (usr, pwd, host, db string) {
-    var err error
+func Db(usr, pwd, host, db string) {
+	var err error
 
-    connParams := usr + ":" + pwd + "@tcp(" + host + ":3306)/" + db
-    DbHdl, err = sql.Open("mysql", connParams)    
-    if err != nil {
-        log.Fatal(err)
-    }
+	connParams := usr + ":" + pwd + "@tcp(" + host + ":3306)/" + db
+	DbHdl, err = sql.Open("mysql", connParams)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    err = DbHdl.Ping()
-    if err != nil {
-        log.Fatal(err)
-    }
+	err = DbHdl.Ping()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-func TblMaxMinTime (ctg, srcTbl string) int {
-    var time int
+func TblMaxMinTime(ctg, srcTbl string) int {
+	var time int
 
-    sqlStr := "select " + ctg + "(time) from " + srcTbl
-    err := DbHdl.QueryRow(sqlStr).Scan(&time)
+	sqlStr := "select " + ctg + "(time) from " + srcTbl
+	err := DbHdl.QueryRow(sqlStr).Scan(&time)
 
-    if err != nil {
-        log.Fatal(err)
-    }
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    return time 
+	return time
 }
 
-func EtcdTime (key string) int {
-    var time int
-    var err error
+func EtcdTime(key string) int {
+	var time int
+	var err error
 
-    bytes := EtcdGet(key)
+	bytes := EtcdGet(key)
 
-    if len(bytes) == 0 {
-        time = -1
-    } else {
-        time, err = strconv.Atoi(string(bytes))
-        if err != nil {
-            log.Fatal(err)
-        }
-    }
+	if len(bytes) == 0 {
+		time = -1
+	} else {
+		time, err = strconv.Atoi(string(bytes))
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
-    return time
+	return time
 }
 
-func EtcdRecord (key, val string) {
-    EtcdSet(key, val)
+func EtcdRecord(key, val string) {
+	EtcdSet(key, val)
 }
 
-func BeginTime (etcdTime, tblMinTime, interval int) int {
-    /*var time int
+func BeginTime(etcdTime, tblMinTime, interval int) int {
+	/*var time int
 
-    if  etcdTime < tblMinTime {
-        time = (tblMinTime / interval) * interval 
-        fmt.Println("tbl-time:", time)
-    } else {
-        time = (etcdTime / interval) * interval
-        fmt.Println("etcd-time:", time)
-    }
+	  if  etcdTime < tblMinTime {
+	      time = (tblMinTime / interval) * interval
+	      fmt.Println("tbl-time:", time)
+	  } else {
+	      time = (etcdTime / interval) * interval
+	      fmt.Println("etcd-time:", time)
+	  }
 
-    return time
-    */
+	  return time
+	*/
 
-    return etcdTime
+	return etcdTime
 }
 
-func FiltData (srcTbl string, dstTbl string, beginTime int, endTime int, groupBys []string) bool {
-    var groupByStr string
-    var sqlStr string
-    groupBysLen := len(groupBys)
+func FiltData(srcTbl string, dstTbl string, beginTime int, endTime int, groupBys []string) bool {
+	var groupByStr string
+	var sqlStr string
+	groupBysLen := len(groupBys)
 
-    if groupBysLen > 0 {
-        for key, val := range groupBys {
-            if key < groupBysLen - 1 {
-                groupByStr = groupByStr + val + ", "
-            } else {
-                groupByStr = groupByStr + val
-            }
-        }
-        sqlStr = "select " + groupByStr + ", sum(flow) from " +  srcTbl +  
-                  " where time >= " + strconv.Itoa(beginTime) + " and time <= " + strconv.Itoa(endTime) + 
-                  " group by " + groupByStr
-    } else {
-        sqlStr = "select sum(flow) from " +  srcTbl +  
-                  " where time >= " + strconv.Itoa(beginTime) + " and time <= " + strconv.Itoa(endTime)
-    }
+	startSelect := time.Now().Unix()
 
-    rows, err := DbHdl.Query(sqlStr)
+	if groupBysLen > 0 {
+		for key, val := range groupBys {
+			if key < groupBysLen-1 {
+				groupByStr = groupByStr + val + ", "
+			} else {
+				groupByStr = groupByStr + val
+			}
+		}
+		sqlStr = "select " + groupByStr + ", sum(flow) from " + srcTbl +
+			" where time >= " + strconv.Itoa(beginTime) + " and time <= " + strconv.Itoa(endTime) +
+			" group by " + groupByStr
+	} else {
+		sqlStr = "select sum(flow) from " + srcTbl +
+			" where time >= " + strconv.Itoa(beginTime) + " and time <= " + strconv.Itoa(endTime)
+	}
 
-    defer rows.Close()
+	rows, err := DbHdl.Query(sqlStr)
 
-    if err != nil {
-        log.Fatal(err)
-    }
+	endSelect := time.Now().Unix()
 
-    for rows.Next() {
-        var err error
-        var sqlStr string
-        var sum int
-        var groupBy0 string
-        var groupBy1 string
+	fmt.Println("select use time: ", endSelect-startSelect)
 
-        if groupBysLen == 0 {
-            err = rows.Scan(&sum)
-            if err != nil {
-                return false
-            }
-            sqlStr = "insert into " + dstTbl + " (time, flow) values (" +
-                      strconv.Itoa(endTime) + ", " + strconv.Itoa(sum) + ")" 
-        } else if groupBysLen == 1 {
-            err = rows.Scan(&groupBy0, &sum)
-            if err != nil {
-                return false
-            }
-            sqlStr = "insert into " + dstTbl + " (time, flow, " + groupBys[0] +  ") values (" +
-                      strconv.Itoa(endTime) + ", " + strconv.Itoa(sum) + ", '" + groupBy0 + "')" 
-        } else {
-            err = rows.Scan(&groupBy0, &groupBy1, &sum)
-            if err != nil {
-                return false
-            }
-            sqlStr = "insert into " + dstTbl + " (time, flow, " + groupBys[0] + ", " + groupBys[1] + ") values (" +
-                      strconv.Itoa(endTime) + ", " + strconv.Itoa(sum) + ", '" + groupBy0 + "', '" + groupBy1 + "')" 
-        }
-        if err != nil {
-            log.Fatal(err)
-        }
+	defer rows.Close()
 
-        stmt, err := DbHdl.Prepare(sqlStr)
-        if err != nil {
-            log.Fatal(err)
-        }
-        
-        defer stmt.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-        _, err = stmt.Exec()
-        if err != nil {
-            log.Fatal(err)
-        }
-    }
+	startInsert := time.Now().Unix()
 
-    return false
+	for rows.Next() {
+		var err error
+		var sqlStr string
+		var sum int
+		var groupBy0 string
+		var groupBy1 string
+
+		if groupBysLen == 0 {
+			err = rows.Scan(&sum)
+			if err != nil {
+				return false
+			}
+			sqlStr = "insert into " + dstTbl + " (time, flow) values (" +
+				strconv.Itoa(endTime) + ", " + strconv.Itoa(sum) + ")"
+		} else if groupBysLen == 1 {
+			err = rows.Scan(&groupBy0, &sum)
+			if err != nil {
+				return false
+			}
+			sqlStr = "insert into " + dstTbl + " (time, flow, " + groupBys[0] + ") values (" +
+				strconv.Itoa(endTime) + ", " + strconv.Itoa(sum) + ", '" + groupBy0 + "')"
+		} else {
+			err = rows.Scan(&groupBy0, &groupBy1, &sum)
+			if err != nil {
+				return false
+			}
+			sqlStr = "insert into " + dstTbl + " (time, flow, " + groupBys[0] + ", " + groupBys[1] + ") values (" +
+				strconv.Itoa(endTime) + ", " + strconv.Itoa(sum) + ", '" + groupBy0 + "', '" + groupBy1 + "')"
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		stmt, err := DbHdl.Prepare(sqlStr)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		endInsert := time.Now().Unix()
+
+		fmt.Println("insert use time: ", endInsert-startInsert)
+		defer stmt.Close()
+
+		_, err = stmt.Exec()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	return false
 }
-
