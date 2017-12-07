@@ -28,7 +28,7 @@ func Sum(srcTbl string, dstTbl string, interval int, groupBys []string, etcdDir 
 }
 
 func main() {
-	var tblPostfix string = "_hour"
+	var tblPostfix string = "_h"
 	var timeWindow int = 60
 
 	args := os.Args
@@ -48,13 +48,13 @@ func main() {
 
 	var tbls map[string][]string
 	tbls = make(map[string][]string)
-	tbls["tbl_netflow"] = []string{}
-	//    tbls["tbl_netflowd"] = []string{"direction"}
-	//    tbls["tbl_netflowp"] = []string{"protocol"}
-	//    tbls["tbl_netflowip"] = []string{"assetIp"}
-	//    tbls["tbl_netflowipd"] = []string{"assetIp", "direction"}
-	//    tbls["tbl_netflowipp"] = []string{"assetIp", "protocol"}
-	//    tbls["tbl_netflowdp"] = []string{"direction", "protocol"}
+	tbls["netflow"] = []string{}
+	tbls["netflowd"] = []string{"direction"}
+	tbls["netflowp"] = []string{"protocol"}
+	tbls["netflowip"] = []string{"assetIp"}
+	tbls["netflowipd"] = []string{"assetIp", "direction"}
+	tbls["netflowipp"] = []string{"assetIp", "protocol"}
+	tbls["netflowdp"] = []string{"direction", "protocol"}
 
 	for tbl, groupBys := range tbls {
 		wg.Add(1)
