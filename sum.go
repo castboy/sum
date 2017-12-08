@@ -6,9 +6,18 @@ import (
 	"strconv"
 	"sum/modules"
 	"sync"
+
+	"github.com/widuu/goini"
 )
 
 var wg sync.WaitGroup
+
+type Conf struct {
+	Host   string
+	User   string
+	Passwd string
+	Db     string
+}
 
 func Sum(srcTbl string, dstTbl string, interval int, groupBys []string, etcdDir string) {
 	tblMaxTime := modules.TblMaxMinTime("max", srcTbl)
@@ -25,6 +34,17 @@ func Sum(srcTbl string, dstTbl string, interval int, groupBys []string, etcdDir 
 
 	fmt.Println(dstTbl, " executed")
 	wg.Add(-1)
+}
+
+func getConf() Conf {
+	conf := goini.SetConfig("conf.ini")
+
+	return Conf{
+		Host:   conf.GetValue("mysql", "host"),
+		User:   conf.GetValue("mysql", "user"),
+		Passwd: conf.GetValue("mysql", "passwd"),
+		Db:     conf.GetValue("mysql", "db"),
+	}
 }
 
 func main() {
@@ -44,7 +64,8 @@ func main() {
 	fmt.Println("timeWindow:", timeWindow)
 
 	modules.InitEtcdCli()
-	modules.Db("root", "mysqladmin", "10.88.1.102", "aptwebservice")
+	conf := getConf()
+	modules.Db(conf.User, conf.Passwd, conf.Host, conf.Db)
 
 	var tbls map[string][]string
 	tbls = make(map[string][]string)
