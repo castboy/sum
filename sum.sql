@@ -211,3 +211,57 @@ BEGIN
 END
 $
 DELIMITER ;
+
+
+
+#netflowipd
+DROP PROCEDURE IF EXISTS `procedure_netflowipd`;
+DELIMITER $
+CREATE PROCEDURE procedure_netflowipd(IN cycle INT, IN dst_table VARCHAR(15), IN new_id INT)
+BEGIN
+    DECLARE insert_time, insert_flow INT;
+    DECLARE insert_assetIP VARCHAR(16);
+    DECLARE insert_direction VARCHAR(16);
+
+    DECLARE sum_time, old_flow INT;
+
+    SELECT time, flow, assetIP, direction INTO insert_time, insert_flow, insert_assetIP, insert_direction FROM `netflowipd` WHERE id = new_id;
+    SET sum_time = ceil(insert_time / cycle) * cycle;
+
+    CASE dst_table
+    	WHEN "netflowipd_q" THEN
+    	    SELECT flow INTO old_flow FROM netflowipd_q WHERE time = sum_time AND assetIP = insert_assetIP AND direction = insert_direction;
+    	    IF old_flow IS NOT NULL THEN
+    		      UPDATE netflowipd_q SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIP = insert_assetIP AND direction = insert_direction;
+    	    ELSE
+    		      INSERT INTO netflowipd_q(time, flow, assetIP, direction) VALUES (sum_time, insert_flow, insert_assetIP, insert_direction);
+    	    END IF;
+        WHEN "netflowipd_h" THEN
+            SELECT flow INTO old_flow FROM netflowipd_h WHERE time = sum_time AND assetIP = insert_assetIP AND direction = insert_direction;
+            IF old_flow IS NOT NULL THEN
+                  UPDATE netflowipd_h SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIP = insert_assetIP AND direction = insert_direction;
+            ELSE
+                  INSERT INTO netflowipd_h(time, flow, assetIP, direction) VALUES (sum_time, insert_flow, insert_assetIP, insert_direction);
+            END IF;
+        ELSE
+            SELECT flow INTO old_flow FROM netflowipd_d WHERE time = sum_time AND assetIP = insert_assetIP AND direction = insert_direction;
+            IF old_flow IS NOT NULL THEN
+                  UPDATE netflowipd_d SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIP = insert_assetIP AND direction = insert_direction;
+            ELSE
+                  INSERT INTO netflowipd_d(time, flow, assetIP, direction) VALUES (sum_time, insert_flow, insert_assetIP, insert_direction);
+            END IF;
+    END CASE;
+END
+$
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `trigger_netflowipd`;
+DELIMITER $
+CREATE TRIGGER `trigger_netflowipd` AFTER INSERT ON `netflowipd` FOR EACH ROW
+BEGIN
+    CALL procedure_netflowipd(60 * 15, "netflowipd_q", NEW.id);
+    CALL procedure_netflowipd(60 * 60, "netflowipd_h", NEW.id);
+    CALL procedure_netflowipd(60 * 60 * 24, "netflowipd_d", NEW.id);
+END
+$
+DELIMITER ;
