@@ -1,3 +1,4 @@
+#netflowip
 DROP PROCEDURE IF EXISTS `procedure_netflowip`;
 DELIMITER $
 CREATE PROCEDURE procedure_netflowip(IN cycle INT, IN dst_table VARCHAR(15), IN new_id INT)
@@ -10,34 +11,32 @@ BEGIN
     SELECT time, flow, assetIp INTO insert_time, insert_flow, insert_assetIp FROM `netflowip` WHERE id = new_id;
     SET sum_time = ceil(insert_time / cycle) * cycle;
 
-
     CASE dst_table
-	WHEN "netflowip_q" THEN
-	    SELECT flow into old_flow FROM netflowip_q WHERE time = sum_time AND assetIp = insert_assetIp;
-	    IF old_flow IS NOT NULL THEN
-		UPDATE netflowip_q SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIp = insert_assetIp;
-	    ELSE
-		insert into netflowip_q(time, flow, assetip) values (sum_time, insert_flow, insert_assetip);
-	    end if;
+    	WHEN "netflowip_q" THEN
+    	    SELECT flow INTO old_flow FROM netflowip_q WHERE time = sum_time AND assetIp = insert_assetIp;
+    	    IF old_flow IS NOT NULL THEN
+    		      UPDATE netflowip_q SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIp = insert_assetIp;
+    	    ELSE
+    		      INSERT INTO netflowip_q(time, flow, assetip) VALUES (sum_time, insert_flow, insert_assetip);
+    	    END IF;
         WHEN "netflowip_h" THEN
-	    SELECT flow into old_flow FROM netflowip_h WHERE time = sum_time AND assetIp = insert_assetIp;
-	    IF old_flow IS NOT NULL THEN
-		UPDATE netflowip_h SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIp = insert_assetIp;
-	    ELSE
-		insert into netflowip_h(time, flow, assetip) values (sum_time, insert_flow, insert_assetip);
-	    end if;
+    	    SELECT flow INTO old_flow FROM netflowip_h WHERE time = sum_time AND assetIp = insert_assetIp;
+    	    IF old_flow IS NOT NULL THEN
+    		      UPDATE netflowip_h SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIp = insert_assetIp;
+    	    ELSE
+    		      INSERT INTO netflowip_h(time, flow, assetip) VALUES (sum_time, insert_flow, insert_assetip);
+    	    END IF;
         ELSE
-	    SELECT flow into old_flow FROM netflowip_d WHERE time = sum_time AND assetIp = insert_assetIp;
-	    IF old_flow IS NOT NULL THEN
-		UPDATE netflowip_d SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIp = insert_assetIp;
-	    ELSE
-		insert into netflowip_d(time, flow, assetip) values (sum_time, insert_flow, insert_assetip);
-	    end if;
-        END CASE;
+    	    SELECT flow INTO old_flow FROM netflowip_d WHERE time = sum_time AND assetIp = insert_assetIp;
+    	    IF old_flow IS NOT NULL THEN
+    		      UPDATE netflowip_d SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIp = insert_assetIp;
+    	    ELSE
+    		      INSERT INTO netflowip_d(time, flow, assetip) VALUES (sum_time, insert_flow, insert_assetip);
+    	    END IF;
+    END CASE;
 END
 $
 DELIMITER ;
-
 
 DROP TRIGGER IF EXISTS `trigger_netflowip`;
 DELIMITER $
