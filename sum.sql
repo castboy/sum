@@ -116,7 +116,7 @@ BEGIN
 
     DECLARE sum_time, old_flow INT;
 
-    SELECT time, flow, direction INTO insert_time, insert_flow, insert_protocol FROM `netflowp` WHERE id = new_id;
+    SELECT time, flow, protocol INTO insert_time, insert_flow, insert_protocol FROM `netflowp` WHERE id = new_id;
     SET sum_time = ceil(insert_time / cycle) * cycle;
 
     CASE dst_table
