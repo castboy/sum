@@ -101,3 +101,58 @@ BEGIN
 END
 $
 DELIMITER ;
+
+
+
+
+
+#netflowp
+DROP PROCEDURE IF EXISTS `procedure_netflowp`;
+DELIMITER $
+CREATE PROCEDURE procedure_netflowp(IN cycle INT, IN dst_table VARCHAR(15), IN new_id INT)
+BEGIN
+    DECLARE insert_time, insert_flow INT;
+    DECLARE insert_protocol VARCHAR(16);
+
+    DECLARE sum_time, old_flow INT;
+
+    SELECT time, flow, direction INTO insert_time, insert_flow, insert_protocol FROM `netflowp` WHERE id = new_id;
+    SET sum_time = ceil(insert_time / cycle) * cycle;
+
+    CASE dst_table
+    	WHEN "netflowp_q" THEN
+    	    SELECT flow INTO old_flow FROM netflowp_q WHERE time = sum_time AND protocol = insert_protocol;
+    	    IF old_flow IS NOT NULL THEN
+    		      UPDATE netflowp_q SET flow = insert_flow + old_flow WHERE time = sum_time AND protocol = insert_protocol;
+    	    ELSE
+    		      INSERT INTO netflowp_q(time, flow, protocol) VALUES (sum_time, insert_flow, insert_protocol);
+    	    END IF;
+        WHEN "netflowp_h" THEN
+            SELECT flow INTO old_flow FROM netflowp_h WHERE time = sum_time AND protocol = insert_protocol;
+            IF old_flow IS NOT NULL THEN
+                  UPDATE netflowp_h SET flow = insert_flow + old_flow WHERE time = sum_time AND protocol = insert_protocol;
+            ELSE
+                  INSERT INTO netflowp_h(time, flow, protocol) VALUES (sum_time, insert_flow, insert_protocol);
+            END IF;
+        ELSE
+            SELECT flow INTO old_flow FROM netflowp_d WHERE time = sum_time AND protocol = insert_protocol;
+            IF old_flow IS NOT NULL THEN
+                  UPDATE netflowp_d SET flow = insert_flow + old_flow WHERE time = sum_time AND protocol = insert_protocol;
+            ELSE
+                  INSERT INTO netflowp_d(time, flow, protocol) VALUES (sum_time, insert_flow, insert_protocol);
+            END IF;
+    END CASE;
+END
+$
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `trigger_netflowp`;
+DELIMITER $
+CREATE TRIGGER `trigger_netflowp` AFTER INSERT ON `netflowp` FOR EACH ROW
+BEGIN
+    CALL procedure_netflowp(60 * 15, "netflowp_q", NEW.id);
+    CALL procedure_netflowp(60 * 60, "netflowp_h", NEW.id);
+    CALL procedure_netflowp(60 * 60 * 24, "netflowp_d", NEW.id);
+END
+$
+DELIMITER ;
