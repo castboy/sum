@@ -265,3 +265,57 @@ BEGIN
 END
 $
 DELIMITER ;
+
+
+
+#netflowipd
+DROP PROCEDURE IF EXISTS `procedure_netflowipp`;
+DELIMITER $
+CREATE PROCEDURE procedure_netflowipp(IN cycle INT, IN dst_table VARCHAR(15), IN new_id INT)
+BEGIN
+    DECLARE insert_time, insert_flow INT;
+    DECLARE insert_assetIP VARCHAR(16);
+    DECLARE insert_protocol VARCHAR(16);
+
+    DECLARE sum_time, old_flow INT;
+
+    SELECT time, flow, assetIP, protocol INTO insert_time, insert_flow, insert_assetIP, insert_protocol FROM `netflowipp` WHERE id = new_id;
+    SET sum_time = ceil(insert_time / cycle) * cycle;
+
+    CASE dst_table
+    	WHEN "netflowipp_q" THEN
+    	    SELECT flow INTO old_flow FROM netflowipp_q WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
+    	    IF old_flow IS NOT NULL THEN
+    		      UPDATE netflowipp_q SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
+    	    ELSE
+    		      INSERT INTO netflowipp_q(time, flow, assetIP, direction) VALUES (sum_time, insert_flow, insert_assetIP, insert_protocol);
+    	    END IF;
+        WHEN "netflowipp_h" THEN
+            SELECT flow INTO old_flow FROM netflowipp_h WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
+            IF old_flow IS NOT NULL THEN
+                  UPDATE netflowipp_h SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
+            ELSE
+                  INSERT INTO netflowipp_h(time, flow, assetIP, direction) VALUES (sum_time, insert_flow, insert_assetIP, insert_protocol);
+            END IF;
+        ELSE
+            SELECT flow INTO old_flow FROM netflowipp_d WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
+            IF old_flow IS NOT NULL THEN
+                  UPDATE netflowipp_d SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
+            ELSE
+                  INSERT INTO netflowipp_d(time, flow, assetIP, direction) VALUES (sum_time, insert_flow, insert_assetIP, insert_protocol);
+            END IF;
+    END CASE;
+END
+$
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `trigger_netflowipp`;
+DELIMITER $
+CREATE TRIGGER `trigger_netflowipp` AFTER INSERT ON `netflowipp` FOR EACH ROW
+BEGIN
+    CALL procedure_netflowipp(60 * 15, "netflowipp_q", NEW.id);
+    CALL procedure_netflowipp(60 * 60, "netflowipp_h", NEW.id);
+    CALL procedure_netflowipp(60 * 60 * 24, "netflowipp_d", NEW.id);
+END
+$
+DELIMITER ;
