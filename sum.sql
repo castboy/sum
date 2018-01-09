@@ -268,7 +268,7 @@ DELIMITER ;
 
 
 
-#netflowipd
+#netflowipp
 DROP PROCEDURE IF EXISTS `procedure_netflowipp`;
 DELIMITER $
 CREATE PROCEDURE procedure_netflowipp(IN cycle INT, IN dst_table VARCHAR(15), IN new_id INT)
@@ -288,21 +288,21 @@ BEGIN
     	    IF old_flow IS NOT NULL THEN
     		      UPDATE netflowipp_q SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
     	    ELSE
-    		      INSERT INTO netflowipp_q(time, flow, assetIP, direction) VALUES (sum_time, insert_flow, insert_assetIP, insert_protocol);
+    		      INSERT INTO netflowipp_q(time, flow, assetIP, protocol) VALUES (sum_time, insert_flow, insert_assetIP, insert_protocol);
     	    END IF;
         WHEN "netflowipp_h" THEN
             SELECT flow INTO old_flow FROM netflowipp_h WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
             IF old_flow IS NOT NULL THEN
                   UPDATE netflowipp_h SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
             ELSE
-                  INSERT INTO netflowipp_h(time, flow, assetIP, direction) VALUES (sum_time, insert_flow, insert_assetIP, insert_protocol);
+                  INSERT INTO netflowipp_h(time, flow, assetIP, protocol) VALUES (sum_time, insert_flow, insert_assetIP, insert_protocol);
             END IF;
         ELSE
             SELECT flow INTO old_flow FROM netflowipp_d WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
             IF old_flow IS NOT NULL THEN
                   UPDATE netflowipp_d SET flow = insert_flow + old_flow WHERE time = sum_time AND assetIP = insert_assetIP AND protocol = insert_protocol;
             ELSE
-                  INSERT INTO netflowipp_d(time, flow, assetIP, direction) VALUES (sum_time, insert_flow, insert_assetIP, insert_protocol);
+                  INSERT INTO netflowipp_d(time, flow, assetIP, protocol) VALUES (sum_time, insert_flow, insert_assetIP, insert_protocol);
             END IF;
     END CASE;
 END
